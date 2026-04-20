@@ -1,0 +1,88 @@
+[
+  {
+    "id": "match_finished_01",
+    "type": "match",
+    "description": "Standard finished match with final results string",
+    "input": {
+      "event_key": 1738682,
+      "event_date": "2026-04-01",
+      "event_time": "06:30",
+      "event_home_team": "Deportes Tolima",
+      "home_team_key": 2271,
+      "event_away_team": "Aguilas",
+      "away_team_key": 2278,
+      "event_halftime_result": "1 - 1",
+      "event_final_result": "4 - 1",
+      "event_ft_result": "4 - 1",
+      "event_penalty_result": "",
+      "event_status": "Finished"
+    },
+    "expected": {
+      "data_id": 1738682,
+      "start_at": "2026-04-01 06:30+00",
+      "start_time": "06:30",
+      "timer": 0,
+      "local_team_id": 2271,
+      "local_team_name": "deportes tolima",
+      "local_team_score": 4,
+      "visitor_team_id": 2278,
+      "visitor_team_name": "aguilas",
+      "visitor_team_score": 1,
+      "status": "finished",
+      "result": "local",
+      "week_day": "wednesday"
+    }
+  },
+  {
+    "id": "match_live_01",
+    "type": "match",
+    "description": "Live match with active timer and event_live flag",
+    "input": {
+      "event_key": 1738683,
+      "event_date": "2026-04-02",
+      "event_time": "15:00",
+      "event_home_team": "Chelsea",
+      "home_team_key": 10,
+      "event_away_team": "Arsenal",
+      "away_team_key": 11,
+      "event_final_result": "2 - 3",
+      "event_status": "67",
+      "event_live": "1"
+    },
+    "expected": {
+      "data_id": 1738683,
+      "start_at": "2026-04-02 15:00+00",
+      "start_time": "15:00",
+      "timer": 67,
+      "local_team_id": 10,
+      "local_team_name": "chelsea",
+      "local_team_score": 2,
+      "visitor_team_id": 11,
+      "visitor_team_name": "arsenal",
+      "visitor_team_score": 3,
+      "status": "running",
+      "result": "none",
+      "week_day": "thursday"
+    }
+  },
+  {
+    "id": "league_01",
+    "type": "league",
+    "description": "Standard League data mapping",
+    "input": {
+      "league_key": 28,
+      "league_name": "World Cup",
+      "country_key": 8,
+      "country_name": "Worldcup",
+      "league_logo": "https://apiv2.allsportsapi.com/logo/logo_leagues/28_world-cup.png",
+      "country_logo": "https://apiv2.allsportsapi.com/logo/logo_country/8_worldcup.png"
+    },
+    "expected": {
+      "league_name": "world cup",
+      "display_name": "world cup",
+      "country": "worldcup",
+      "data_id": 28,
+      "is_mixed": "False"
+    }
+  }
+]

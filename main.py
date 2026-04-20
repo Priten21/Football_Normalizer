@@ -27,14 +27,6 @@ def main():
         data_object = mapped_result.get("data", {})
         
         print(f"\n[+] Successfully mapped as: {classification.upper()}")
-        
-        confidence = mapped_result.get("confidence", {})
-        if confidence:
-            print("[!] Confidence Metrics:")
-            for k, v in confidence.items():
-                print(f"    - {k}: {v}%")
-                
-        print("\n[+] Extracted Payload:")
         print(json.dumps(data_object, indent=2))
         
     except Exception as e:
