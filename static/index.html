@@ -3,157 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Football Model Mapper | Tactical Dashboard</title>
+    <title>Football Intelligence | Tactical Normalizer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- SIDEBAR NAVIGATION -->
+    <div class="app-shell">
+        <!-- NAVIGATION SIDEBAR -->
         <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">⚽</span>
-                <div class="logo-text">
-                    <h1>FM-MAPPER</h1>
-                    <span class="version">v2.0 Professional</span>
+            <div class="brand">
+                <span class="brand-icon">◍</span>
+                <div class="brand-text">
+                    <h1>Scythe V4</h1>
+                    <p style="font-size: 0.6rem; color: #475569; letter-spacing: 2px;">LOGPROB ENABLED</p>
                 </div>
             </div>
-            <nav class="nav-menu">
-                <button class="nav-item active" data-tab="normalizer">
-                    <span class="icon">⚡</span> Normalizer
+            
+            <nav class="nav-links">
+                <button class="nav-btn active" onclick="switchTab('normalizer')">
+                    <span>⚡</span> Data Normalizer
                 </button>
-                <button class="nav-item" data-tab="integrity">
-                    <span class="icon">🛡️</span> System Integrity
+                <button class="nav-btn" onclick="switchTab('integrity')">
+                    <span>🛡️</span> Accuracy Audit
                 </button>
-                <button class="nav-item" id="auditBtn">
-                    <span class="icon">📊</span> Run Full Audit
+                <button class="nav-btn" onclick="runGlobalAudit()" id="globalAuditBtn">
+                    <span>📊</span> Rescan Workspace
                 </button>
             </nav>
-            <div class="sidebar-footer">
-                <div class="system-status">
-                    <span class="status-dot online"></span>
-                    <span class="status-text">Ollama Active</span>
+
+            <div style="margin-top: auto; padding: 1rem; border-top: 1px solid var(--border-glass);">
+                <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.5rem;">OLLAMA CORE</div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--conf-high); box-shadow: 0 0 10px var(--conf-high);"></div>
+                    <span style="font-size: 0.8rem; font-weight: 600;">v0.21.0 Online</span>
                 </div>
             </div>
         </aside>
 
-        <!-- MAIN CONTENT AREA -->
-        <main class="main-content">
-            <!-- TAB: NORMALIZER -->
-            <section id="tab-normalizer" class="tab-content active">
-                <div class="dashboard-grid">
-                    <!-- PANEL 1: INPUT -->
-                    <section class="panel input-panel">
-                        <div class="panel-header">
-                            <h2>Tactical Feed</h2>
-                            <span class="badge">Raw Data</span>
-                        </div>
-                        <div class="panel-body">
-                            <textarea id="rawDataInput" placeholder="Paste your raw football API JSON here..."></textarea>
-                        </div>
-                        <div class="panel-footer">
-                            <button id="mapButton" class="btn-primary">
-                                <span class="btn-text">Normalize Payload</span>
-                                <div id="loader" class="btn-loader hidden"></div>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- PANEL 2: OUTPUT -->
-                    <section class="panel output-panel">
-                        <div class="panel-header">
-                            <h2>Normalized Data</h2>
-                            <div class="header-actions">
-                                <button id="copyBtn" class="btn-icon">📋</button>
-                            </div>
-                        </div>
-                        <div class="panel-body">
-                            <!-- Quality Monitor Dashboard -->
-                            <div id="qualityMonitor" class="quality-dashboard hidden">
-                                <div class="quality-header">
-                                    <div class="quality-status" id="qualityStatus">Testing...</div>
-                                    <button id="showStatsBtn" class="btn-text-sm">View Accuracy Report</button>
-                                </div>
-                                
-                                <div class="quality-buckets">
-                                    <div class="bucket-column critical">
-                                        <h4>Critical Errors Found</h4>
-                                        <ul id="bucket-critical"></ul>
-                                    </div>
-                                    <div class="bucket-column optimization">
-                                        <h4>Needs Optimization</h4>
-                                        <ul id="bucket-optimization"></ul>
-                                    </div>
-                                    <div class="bucket-column perfect">
-                                        <h4>Perfectly Mapped</h4>
-                                        <ul id="bucket-perfect"></ul>
-                                    </div>
-                                </div>
-
-                                <div id="accScoreDetail" class="acc-detail hidden">
-                                    <div class="acc-gauge">
-                                        <label>Confidence Level</label>
-                                        <div class="gauge-ring"><span id="accScoreCircle">0</span>%</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="code-viewer-container">
-                                <pre class="code-viewer"><code id="jsonOutput">// Awaiting normalization...</code></pre>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- PANEL 3: CHAT -->
-                    <section class="panel chat-panel">
-                        <div class="panel-header">
-                            <h2>Tactical Analysis</h2>
-                            <div id="chatStatus" class="chat-status idle">Idle</div>
-                        </div>
-                        <div class="panel-body">
-                            <div class="chat-history" id="chatHistory">
-                                <div class="system-msg">Awaiting data normalization to begin analysis...</div>
-                            </div>
-                        </div>
-                        <div class="panel-footer">
-                            <div class="chat-input-wrapper">
-                                <input type="text" id="chatInput" placeholder="Ask about the match data..." disabled>
-                                <button id="sendChat" class="btn-icon" disabled>➤</button>
-                            </div>
-                        </div>
-                    </section>
+        <!-- MAIN OPERATIONAL VIEW -->
+        <main class="dashboard" id="main-normalizer">
+            <!-- PANEL: RAW FEED -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Raw Source Feed</h2>
+                    <button id="mapBtn" class="btn-primary">
+                        <span>Execute Normalization</span>
+                        <div id="loader" style="display: none; width: 12px; height: 12px; border: 2px solid #000; border-top-color: transparent; border-radius: 50%; animate: spin 1s linear infinite;"></div>
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <textarea id="rawInput" placeholder="Awaiting API payload..."></textarea>
                 </div>
             </section>
 
-            <!-- TAB: INTEGRITY (LIVE AUDIT) -->
-            <section id="tab-integrity" class="tab-content">
-                <div class="integrity-view">
-                    <div class="view-header">
-                        <h2>Live Precision Audit</h2>
-                        <p>Real-time integrity scan of the current mapping session and field-level precision.</p>
+            <!-- PANEL: NORMALIZED COMMAND -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Normalized Commands</h2>
+                    <div id="qualityIndicator" style="font-size: 0.7rem; font-weight: 700; color: var(--conf-high);">SYSTEM READY</div>
+                </div>
+                <div class="panel-content" style="background: rgba(0,0,0,0.2);">
+                    <div id="jsonOutput" class="code-render">
+                        <span style="color: #334155;">// Normalize a payload to view field-level precision...</span>
                     </div>
-                    
-                    <section id="accuracyDashboard" class="accuracy-container">
-                        <div class="accuracy-stats">
-                            <div class="stat-card main-score">
-                                <label>Session Integrity Score</label>
-                                <div class="score-value" id="overallScore">--%</div>
-                                <div class="progress-bar"><div id="overallProgress" class="progress-fill"></div></div>
-                            </div>
-                            <div class="stat-card field-stats">
-                                <label>Field-Level Precision</label>
-                                <div class="field-grid" id="fieldGrid">
-                                    <!-- Fields will be injected here -->
-                                </div>
-                            </div>
+                </div>
+            </section>
+
+            <!-- PANEL: ACCURACY INSIGHTS -->
+            <section class="panel" style="grid-column: span 1;">
+                <div class="panel-header">
+                    <h2>Precision Audit</h2>
+                </div>
+                <div class="panel-content">
+                    <div id="auditStats" class="accuracy-grid">
+                        <div class="stat-item">
+                            <span class="stat-val" id="caseAccuracy">--%</span>
+                            <span class="stat-label">Logic Acc.</span>
                         </div>
-                    </section>
+                        <div class="stat-item">
+                            <span class="stat-val" id="caseConfidence">--%</span>
+                            <span class="stat-label">Mean Conf.</span>
+                        </div>
+                    </div>
+                    <div id="uncertaintyList" style="margin-top: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        <!-- Low confidence badges go here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- PANEL: TACTICAL ANALYSIS -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Tactical Analysis</h2>
+                </div>
+                <div class="panel-content" id="chatWindow">
+                    <div class="chat-bubble assistant">Normalized dashboard operational. Send an API payload to begin tactical mapping.</div>
+                </div>
+                <div style="padding: 1rem; border-top: 1px solid var(--border-glass);">
+                    <input type="text" id="chatInput" placeholder="Ask intelligence about the match..." style="width: 100%; background: transparent; border: none; color: white; outline: none; font-size: 0.9rem;" disabled>
                 </div>
             </section>
         </main>
+
+        <!-- INTEGRITY VIEW (HIDDEN BY DEFAULT) -->
+        <main class="dashboard" id="main-integrity" style="display: none; grid-template-columns: 1fr;">
+             <section class="panel">
+                <div class="panel-header">
+                    <h2>Workspace Integrity Report</h2>
+                    <button class="btn-primary" onclick="runGlobalAudit()">Run Full Rescan</button>
+                </div>
+                <div class="panel-content">
+                    <div id="globalAuditResults" class="accuracy-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <!-- Global stats -->
+                    </div>
+                    <div id="fieldPrecisionMap" style="margin-top: 2rem;">
+                         <!-- Field level precision bars -->
+                    </div>
+                </div>
+             </section>
+        </main>
     </div>
+
     <script src="app.js"></script>
+    <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </body>
 </html>

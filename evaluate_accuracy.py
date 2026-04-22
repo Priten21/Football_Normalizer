@@ -100,7 +100,9 @@ def run_evaluation():
                 "id": case["id"],
                 "passed": case_passed,
                 "accuracy": (metrics["correct"] / metrics["total"]) * 100,
-                "errors": metrics["errors"]
+                "confidence": mapped_result.get("confidence", 0),
+                "errors": metrics["errors"],
+                "field_confidences": mapped_result.get("field_confidences", {})
             })
                 
         except Exception as e:
@@ -113,10 +115,12 @@ def run_evaluation():
 
     # Prepare final report object
     field_accuracy = {k: (v["correct"] / v["total"]) * 100 for k, v in field_stats.items()}
+    avg_confidence = sum(c["confidence"] for c in case_summaries) / len(case_summaries) if case_summaries else 0
     passed_count = sum(1 for c in case_summaries if c["passed"])
     
     return {
         "overall_accuracy": (global_correct_fields / global_total_fields) * 100 if global_total_fields > 0 else 0,
+        "overall_confidence": avg_confidence,
         "case_pass_rate": (passed_count / len(test_cases)) * 100 if test_cases else 0,
         "total_cases": len(test_cases),
         "passed_cases": passed_count,
@@ -135,7 +139,13 @@ if __name__ == "__main__":
     for case in report["case_details"]:
         color = GREEN if case["passed"] else RED
         status = "PASS" if case["passed"] else "FAIL"
-        print(f"Running Case: {case['id']}... {color}{status}{RESET} ({case['accuracy']:.1f}%)")
+        print(f"Running Case: {case['id']}... {color}{status}{RESET} (Acc: {case['accuracy']:.1f}%, Conf: {case['confidence']:.1f}%)")
+        
+        # Display Low Confidence Fields
+        low_conf = {k: v for k, v in case["field_confidences"].items() if v < 85}
+        if low_conf:
+            print(f"    - {BLUE}[Uncertain Fields]{RESET} {', '.join([f'{k}({v:.0f}%)' for k, v in low_conf.items()])}")
+            
         for err in case["errors"]:
             print(f"    - {RED}[Field Error]{RESET} {err['field']}: Expected '{err['expected']}', Got '{err['actual']}'")
 
@@ -145,6 +155,7 @@ if __name__ == "__main__":
     print(f"Total Cases: {report['total_cases']}")
     print(f"Passed Cases: {report['passed_cases']} ({report['case_pass_rate']:.1f}%)")
     print(f"Global Field-Level Accuracy: {report['overall_accuracy']:.2f}%")
+    print(f"Mean Mapping Confidence: {report['overall_confidence']:.2f}%")
     
     if report['passed_cases'] < report['total_cases']:
         sys.exit(1)

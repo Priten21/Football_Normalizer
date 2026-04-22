@@ -15,7 +15,8 @@
       "event_final_result": "4 - 1",
       "event_ft_result": "4 - 1",
       "event_penalty_result": "",
-      "event_status": "Finished"
+      "event_status": "Finished",
+      "strDay": "Wednesday"
     },
     "expected": {
       "data_id": 1738682,
@@ -47,7 +48,8 @@
       "away_team_key": 11,
       "event_final_result": "2 - 3",
       "event_status": "67",
-      "event_live": "1"
+      "event_live": "1",
+      "week_day": "Thursday"
     },
     "expected": {
       "data_id": 1738683,
@@ -82,7 +84,58 @@
       "display_name": "world cup",
       "country": "worldcup",
       "data_id": 28,
-      "is_mixed": "False"
+      "is_mixed": false
+    }
+  },
+  {
+    "id": "match_alt_weekday_key",
+    "type": "match",
+    "description": "Tests week_day extraction when the key name is 'dayOfWeek' instead of 'week_day'",
+    "input": {
+      "event_key": 9991,
+      "event_date": "2026-04-18",
+      "event_time": "20:00",
+      "event_home_team": "Barca",
+      "home_team_key": 50,
+      "event_away_team": "Madrid",
+      "away_team_key": 51,
+      "event_final_result": "1 - 2",
+      "event_status": "Finished",
+      "dayOfWeek": "Saturday"
+    },
+    "expected": {
+      "data_id": 9991,
+      "start_at": "2026-04-18 20:00+00",
+      "status": "finished",
+      "result": "visitor",
+      "week_day": "saturday"
+    }
+  },
+  {
+    "id": "match_ht_status",
+    "type": "match",
+    "description": "Tests that HT event_status correctly maps to status=running",
+    "input": {
+      "event_key": 9992,
+      "event_date": "2026-04-19",
+      "event_time": "16:00",
+      "event_home_team": "Liverpool",
+      "home_team_key": 20,
+      "event_away_team": "ManCity",
+      "away_team_key": 21,
+      "event_final_result": "1 - 1",
+      "event_status": "HT",
+      "event_live": "1",
+      "timer": 45,
+      "week_day": "Sunday"
+    },
+    "expected": {
+      "data_id": 9992,
+      "start_at": "2026-04-19 16:00+00",
+      "status": "running",
+      "result": "none",
+      "week_day": "sunday",
+      "timer": 45
     }
   }
 ]
