@@ -25,16 +25,13 @@
                 <button class="nav-btn active" onclick="switchTab('normalizer')">
                     <span>⚡</span> Data Normalizer
                 </button>
-                <button class="nav-btn" onclick="switchTab('integrity')">
-                    <span>🛡️</span> Accuracy Audit
-                </button>
-                <button class="nav-btn" onclick="runGlobalAudit()" id="globalAuditBtn">
-                    <span>📊</span> Rescan Workspace
+                <button class="nav-btn" onclick="switchTab('traceability')">
+                    <span>🗺️</span> Traceability Map
                 </button>
             </nav>
 
             <div style="margin-top: auto; padding: 1rem; border-top: 1px solid var(--border-glass);">
-                <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.5rem;">OLLAMA CORE</div>
+                <div style="font-size: 0.7rem; color: #475569; margin-bottom: 0.5rem;">OLLAMA CORE</div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--conf-high); box-shadow: 0 0 10px var(--conf-high);"></div>
                     <span style="font-size: 0.8rem; font-weight: 600;">v0.21.0 Online</span>
@@ -71,34 +68,12 @@
                 </div>
             </section>
 
-            <!-- PANEL: ACCURACY INSIGHTS -->
-            <section class="panel" style="grid-column: span 1;">
+            <!-- PANEL: TACTICAL ANALYSIS (FULL SPAN) -->
+            <section class="panel" style="grid-column: span 2;">
                 <div class="panel-header">
-                    <h2>Precision Audit</h2>
+                    <h2>Tactical Intelligence</h2>
                 </div>
-                <div class="panel-content">
-                    <div id="auditStats" class="accuracy-grid">
-                        <div class="stat-item">
-                            <span class="stat-val" id="caseAccuracy">--%</span>
-                            <span class="stat-label">Logic Acc.</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-val" id="caseConfidence">--%</span>
-                            <span class="stat-label">Mean Conf.</span>
-                        </div>
-                    </div>
-                    <div id="uncertaintyList" style="margin-top: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                        <!-- Low confidence badges go here -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- PANEL: TACTICAL ANALYSIS -->
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Tactical Analysis</h2>
-                </div>
-                <div class="panel-content" id="chatWindow">
+                <div class="panel-content" id="chatWindow" style="min-height: 200px;">
                     <div class="chat-bubble assistant">Normalized dashboard operational. Send an API payload to begin tactical mapping.</div>
                 </div>
                 <div style="padding: 1rem; border-top: 1px solid var(--border-glass);">
@@ -107,19 +82,16 @@
             </section>
         </main>
 
-        <!-- INTEGRITY VIEW (HIDDEN BY DEFAULT) -->
-        <main class="dashboard" id="main-integrity" style="display: none; grid-template-columns: 1fr;">
+        <!-- TRACEABILITY VIEW (DEDICATED FULL SCREEN) -->
+        <main class="dashboard" id="main-traceability" style="display: none; grid-template-columns: 1fr; grid-template-rows: 1fr;">
              <section class="panel">
                 <div class="panel-header">
-                    <h2>Workspace Integrity Report</h2>
-                    <button class="btn-primary" onclick="runGlobalAudit()">Run Full Rescan</button>
+                    <h2>Real-Time Architectural Traceability Map</h2>
+                    <div style="font-size: 0.6rem; color: #475569;">CONFIDENCE-BASED ROUTING</div>
                 </div>
-                <div class="panel-content">
-                    <div id="globalAuditResults" class="accuracy-grid" style="grid-template-columns: repeat(4, 1fr);">
-                        <!-- Global stats -->
-                    </div>
-                    <div id="fieldPrecisionMap" style="margin-top: 2rem;">
-                         <!-- Field level precision bars -->
+                <div class="panel-content" style="min-height: 600px; position: relative; overflow-y: auto;">
+                    <div id="mappingDiagram" class="mapping-diagram">
+                        <div class="diagram-placeholder">// Execute a mapping to visualize the architectural flow...</div>
                     </div>
                 </div>
              </section>

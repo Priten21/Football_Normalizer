@@ -26,6 +26,7 @@ async def api_map(req: MapRequest):
             "type": mapped_dict.get("type"),
             "data": mapped_dict.get("data"),
             "field_confidences": mapped_dict.get("field_confidences"),
+            "mapping_trace": mapped_dict.get("mapping_trace"),
             "quality": quality
         }
     except Exception as e:

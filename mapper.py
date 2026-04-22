@@ -4,67 +4,32 @@ import math
 import re
 
 MAPPING_RULES = """
-⚽ MATCH MAPPING RULES
-CORE PRINCIPLE: INPUT SOURCE TRACEABILITY. The PROVIDED INPUT is your ONLY source of truth. 
-- DO NOT invent or hallucinate IDs, scores, or names. 
-- If data is missing from input, output null/0 per schema.
-- All normalized strings must be lowercase.
+⚽ FOOTBALL DATA NORMALIZER
+GOAL: Map INPUT to SCHEMA with 100% TRACEABILITY.
 
 1. Identifiers & Timing:
-- data_id (number/string): Extracted strictly by priority (event_key > fixture.id > idEvent > matchId).
-- start_at (string/null): Format "YYYY-MM-DD HH:MM+00". For AllSports, you MUST combine `event_date` + `event_time`. For others, extract from UTC/ISO fields.
-- start_time (string/null): HH:MM extracted from input (event_time, strTime). 
-- timer (integer): Minute from input `timer` or `status`. If missing, 0.
-- week_day (string/null): Day of the week. Search ALL keys in the input for common weekday aliases.
-  Key aliases to check (in order): [week_day, weekday, day, strDay, dayOfWeek, day_of_week, matchDay, match_day, event_day, fixture_day, strDayOfWeek, gameDay].
-  If a value is found in any of these keys, output it lowercased. If none exist in the input, output null.
-- end_at & data_static_id: Always null.
+- data_id: event_key > id > fixture_id > matchId.
+- start_at: Combine event_date + event_time (Format: YYYY-MM-DD HH:MM+00).
+- week_day: Only if "Monday", "Tuesday", etc. is LITERALLY in the input. Else null.
 
-2. Team Information:
-- local_team_id (integer/null): Priority keys: [home_team_key, localteam_id, home_id, team_home_id].
-- visitor_team_id (integer/null): Priority keys: [away_team_key, visitorteam_id, away_id, team_away_id].
-- local_team_name (string/null): Priority keys: [event_home_team, localteam_name, home_team, strHomeTeam, team_1]. Must be lowercase.
-- visitor_team_name (string/null): Priority keys: [event_away_team, visitorteam_name, away_team, strAwayTeam, team_2]. Must be lowercase.
-- TRACEABILITY: Only extract names present in the input. Do not invent team names.
+2. Scores (Integers, default 0):
+- local_team_score / visitor_team_score: 
+  PRIORITY: event_final_result > event_ft_result > event_home_team_score/event_away_team_score > home_score/away_score > score_1/score_2.
+  NOTE: If "5 - 0" is in event_final_result, split it.
+- local_team_ft_score / visitor_team_ft_score: Only if status is "finished". Use FT keys.
+- local_team_pen_score / visitor_team_pen_score: Only if penalties occurred.
 
-3. Scores (All integers, default to 0 if unknown):
-- CRITICAL PRIORITY: Extract `local_team_score` and `visitor_team_score` using the most specific keys available (e.g., `event_home_team_score` and `event_away_team_score`). 
-- STRING PARSING: If ONLY a composite string like `event_final_result` (e.g. "2 - 0") or `score` (e.g. "1-4") is present, you MUST split it. The first number is ALWAYS the local team score, and the second is ALWAYS the visitor team score.
-- local_team_score / visitor_team_score: Current/Final main score.
-- local_team_ft_score / visitor_team_ft_score: Full-time score (90') if known. Must be 0 for non-finished matches.
-- local_team_et_score / visitor_team_et_score: Extra-time score if known, else 0.
-- local_team_pen_score / visitor_team_pen_score: Penalty shootout score if known, else 0.
+3. Team Names:
+- local_team_name / visitor_team_name: Lowercase. Use event_home_team, localteam_name, home_team, etc.
 
-4. Status & Results:
-- status (string, strictly enum): Must be exactly one of: upcoming, running, finished, abort.
-  GOLDEN RULE FIRST: If event_live == "1" (or 1) AND timer > 0, status MUST be "running". No exceptions.
-  Follow this STRICT PRIORITY DECISION TABLE — check each condition in order, stop at first match:
-  STEP 1 — If event_live == "1" or event_live == 1 → status = "running". STOP.
-  STEP 2 — If event_status contains ONLY digits (e.g. "45", "67", "90") OR contains a number pattern ("45+2", "min 23", "23'") → status = "running". STOP.
-  STEP 3 — If event_status is exactly one of ["HT", "1H", "2H", "ET", "PEN", "ht", "1h", "2h", "et", "pen"] → status = "running". STOP.
-  STEP 4 — If event_status matches ["Finished", "FT", "AET", "finished", "ft", "aet"] → status = "finished". STOP.
-  STEP 5 — If event_status matches ["Postponed", "Cancelled", "Suspended", "Abandoned", "Awarded", "postponed", "cancelled"] → status = "abort". STOP.
-  STEP 6 — If event_status matches ["NS", "Not Started", "Scheduled", "TBD"] OR event_time is in the future → status = "upcoming". STOP.
-  STEP 7 (DEFAULT) — If no condition matched → status = "upcoming".
-- status_text (string/null): A short, human-readable description of the current status. Examples: "match finished", "match in progress", "match postponed", "match upcoming". Derived from both the status enum and the raw input status string.
-- result (string, strictly enum): Must be exactly one of: none, local, visitor, draw.
-  Strict logic to determine result:
-  * If status is NOT 'finished', result MUST BE "none".
-  * If status IS 'finished', result CANNOT BE "none". You MUST calculate it securely:
-      If local_team_score > visitor_team_score, result = "local"
-      If local_team_score < visitor_team_score, result = "visitor"
-      If local_team_score == visitor_team_score, result = "draw"
-- Strict Rule: Never copy a score string text (like "3-0") into the result field.
-- EXTREME STRICTNESS: If status is "finished", generating `"result": "none"` is a FATAL ERROR. You MUST perform the score comparison to output "local", "visitor", or "draw".
+4. Status & Result:
+- status: finished, running, upcoming, abort. (Finished if event_status == "Finished" or "FT").
+- result: Calculate based on scores if status is "finished" (local, visitor, or draw).
 
 🏆 LEAGUE MAPPING RULES
-The output for a league must be exactly 7 keys.
-- league_name (string/null): Lowercased league/competition name from input.
-- display_name (string/null): Same as league_name unless a separate display field exists.
-- country (string/null): Lowercased country/area/region name from input string fields (country_name, strCountry). Never mapped from numeric keys.
-- data_id (number/string): Unique league identifier, extracted by priority (league_key > league.id > competition.id, etc.).
-- date_start & date_end: Always null.
-- is_mixed: Always false (boolean).
+- league_name / display_name: competition/league name.
+- country: country/region name.
+- data_id: league_key > id.
 """
 
 MATCH_SCHEMA = {
@@ -102,6 +67,39 @@ LEAGUE_SCHEMA = {
   "is_mixed": "False"
 }
 
+def resilient_json_load(raw_str):
+    """Parses JSON even if it has missing commas, trailing commas, or single quotes."""
+    if not raw_str: return {}
+    # 1. Try standard load
+    try: return json.loads(raw_str)
+    except: pass
+    
+    # 2. Cleanup and try again
+    try:
+        # Fix missing commas between key-value pairs
+        # Look for "value" "key" and insert comma
+        cleaned = re.sub(r'("|\d|true|false|null)\s*\n\s*"', r'\1,\n"', raw_str)
+        # Fix trailing commas
+        cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
+        # Fix single quotes
+        cleaned = cleaned.replace("'", '"')
+        return json.loads(cleaned)
+    except: pass
+    
+    # 3. Last resort: Regex extraction into a flat dict
+    flat_dict = {}
+    matches = re.findall(r'"([^"]+)"\s*:\s*(?:"([^"]*)"|(-?\d+\.?\d*)|(true|false|null))', raw_str)
+    for m in matches:
+        key = m[0]
+        val = m[1] or m[2] or m[3]
+        if val == "true": val = True
+        elif val == "false": val = False
+        elif val == "null": val = None
+        elif m[2]: # numeric
+            val = float(val) if "." in val else int(val)
+        flat_dict[key] = val
+    return flat_dict
+
 def map_api_to_json(raw_api_data):
     prompt = f"""<SYSTEM_ROUTINE_ENFORCEMENT>
 YOU ARE A DETERMINISTIC, HIGH-FIDELITY DATA MAPPING ENGINE. 
@@ -129,11 +127,11 @@ Output: {{"type": "match", "data": {{"data_id": 101, "local_team_name": "home cl
 INPUT DATA FOR ANALYSIS:
 {raw_api_data}
 
-Return ONLY the valid JSON object exactly matching the chosen structure. Any field you cannot find in the INPUT DATA must be set to its default (null or 0). 
+Return ONLY valid JSON.
 Output format:
 {{
   "type": "match" or "league",
-  "data": {{ <MAPPED KEYS> }}
+  "data": {{ ... }}
 }}"""
 
     response = ollama.generate(
@@ -146,9 +144,18 @@ Output format:
     
     result = json.loads(response['response'])
     
+    # --- SCHEMA RE-HYDRATION: Ensure 100% field coverage ---
+    if "data" not in result: result["data"] = {}
+    target_schema = MATCH_SCHEMA if result.get("type") == "match" else LEAGUE_SCHEMA
+    for key, default_val in target_schema.items():
+        if key not in result["data"]:
+            # Use 0 for integers, None for others
+            result["data"][key] = 0 if isinstance(default_val, int) else None
+
     # Calculate Per-Key Confidence
     field_confidences = map_logprobs_to_keys(response)
     result["field_confidences"] = field_confidences
+    result["mapping_trace"] = {} # Initialize trace
     
     # Calculate overall confidence
     all_probs = list(field_confidences.values())
@@ -157,69 +164,138 @@ Output format:
     # POST-PROCESSING: Hardcore accuracy enforcement
     if result.get("type") == "match" and "data" in result:
         data = result["data"]
-        raw_dict = {}
-        try:
-            raw_dict = json.loads(raw_api_data)
-        except: pass
-
+        raw_dict = resilient_json_load(raw_api_data)
+        
         # 1. ENFORCE data_id - always overwrite from source (never trust model for this)
-        data["data_id"] = (
-            raw_dict.get("event_key") or raw_dict.get("event_id") or
-            raw_dict.get("id") or raw_dict.get("fixture_id") or
-            raw_dict.get("matchId") or raw_dict.get("idEvent") or
-            raw_dict.get("match_id") or data.get("data_id") or 0
-        )
+        for k in ["event_key", "event_id", "id", "fixture_id", "matchId", "idEvent", "match_id"]:
+            if raw_dict.get(k):
+                data["data_id"] = raw_dict.get(k)
+                result["mapping_trace"]["data_id"] = k
+                break
+        else:
+            data["data_id"] = data.get("data_id") or 0
 
         # 2. ENFORCE start_at in fixed format YYYY-MM-DD HH:MM+00 (always from source)
-        e_date = raw_dict.get("event_date") or raw_dict.get("fixture", {}).get("date") or raw_dict.get("utcDate") or raw_dict.get("match_date")
-        e_time = raw_dict.get("event_time") or raw_dict.get("start_time") or ""
+        for k in ["event_date", "fixture.date", "utcDate", "match_date"]:
+            val = raw_dict.get(k)
+            if isinstance(val, dict): val = val.get("date")
+            if val:
+                date_part = str(val).split("T")[0]
+                result["mapping_trace"]["start_at"] = k
+                break
+        else:
+            date_part = "0000-00-00"
+
+        for k in ["event_time", "start_time"]:
+            val = raw_dict.get(k)
+            if val:
+                time_part = str(val)[:5]
+                result["mapping_trace"]["start_time"] = k
+                break
+        else:
+            time_part = "00:00"
+            
+        data["start_at"] = f"{date_part} {time_part}+00"
+        data["start_time"] = time_part
+
+        # 3. ENFORCE Score Extraction — STRICT key priority, NO halftime sources
+        # Priority A: direct numeric keys for main score
+        MAIN_SCORE_KEYS = [
+            ("event_home_team_score", "event_away_team_score"),
+            ("home_score",            "away_score"),
+            ("score_home",            "score_away"),
+            ("goals_home",            "goals_away"),
+            ("scr_1",                 "scr_2"),
+            ("score_1",               "score_2"),
+            ("homeScore",             "awayScore"),
+            ("home_goals",            "away_goals"),
+            ("localteam_score",       "visitorteam_score"),
+        ]
+        score_set = False
+        for local_key, visitor_key in MAIN_SCORE_KEYS:
+            lv = raw_dict.get(local_key)
+            vv = raw_dict.get(visitor_key)
+            if lv is not None and vv is not None:
+                try:
+                    data["local_team_score"]   = int(lv)
+                    data["visitor_team_score"]  = int(vv)
+                    result["mapping_trace"]["local_team_score"] = local_key
+                    result["mapping_trace"]["visitor_team_score"] = visitor_key
+                    score_set = True
+                    break
+                except (ValueError, TypeError):
+                    pass
+
+        # Priority B: composite string keys (ONLY if no direct key found above)
+        if not score_set:
+            # ❌ Excluded: event_halftime_result, event_ft_result (full-time goes to ft_score, not main score)
+            COMPOSITE_KEYS = ["event_final_result", "score"]
+            for ckey in COMPOSITE_KEYS:
+                res_str = raw_dict.get(ckey)
+                if res_str:
+                    try:
+                        normalized = str(res_str).replace(":", " - ").replace("-", " - ")
+                        parts = [p.strip() for p in normalized.split(" - ") if p.strip().isdigit()]
+                        if len(parts) >= 2:
+                            data["local_team_score"]  = int(parts[0])
+                            data["visitor_team_score"] = int(parts[1])
+                            result["mapping_trace"]["local_team_score"] = ckey
+                            result["mapping_trace"]["visitor_team_score"] = ckey
+                            score_set = True
+                            break
+                    except (ValueError, TypeError):
+                        pass
+
+        # Priority C: Nested scores (Football-Data.org / API-Football)
+        if not score_set:
+            for parent_key in ["result", "score", "goals"]:
+                p_val = raw_dict.get(parent_key, {})
+                if isinstance(p_val, dict):
+                    # Check nested levels
+                    for sub_key in ["fulltime", "fullTime", "total", "score"]:
+                        s_val = p_val.get(sub_key)
+                        if isinstance(s_val, dict):
+                            lv = s_val.get("home") or s_val.get("local") or s_val.get("homeTeam")
+                            vv = s_val.get("away") or s_val.get("visitor") or s_val.get("awayTeam")
+                            if lv is not None and vv is not None:
+                                try:
+                                    data["local_team_score"]  = int(lv)
+                                    data["visitor_team_score"] = int(vv)
+                                    result["mapping_trace"]["local_team_score"] = f"{parent_key}.{sub_key}"
+                                    result["mapping_trace"]["visitor_team_score"] = f"{parent_key}.{sub_key}"
+                                    score_set = True
+                                    break
+                                except (ValueError, TypeError): pass
+                    if score_set: break
+
+
+        # 4. ENFORCE Correct Status & Result Logic (STRICT ENUMS)
+        status = str(data.get("status", "upcoming")).lower().strip()
+        # VALID STATUS ENUM: [finished, running, upcoming, abort]
+        if status not in ["finished", "running", "upcoming", "abort"]:
+            # Snap to logical nearest
+            if status in ["ft", "aet", "pen", "finished"]: status = "finished"
+            elif status in ["ht", "1h", "2h", "live"]: status = "running"
+            elif status in ["ns", "tbd", "upcoming"]: status = "upcoming"
+            else: status = "upcoming" # Default safe value
         
-        if e_date:
-            date_part = str(e_date).split(" ")[0].split("T")[0]
-            # Extract time: prefer explicit time field, else parse from ISO datetime
-            if e_time:
-                time_part = str(e_time).strip()[:5]
-            elif "T" in str(e_date):
-                time_part = str(e_date).split("T")[1][:5]
-            else:
-                time_part = "00:00"
-            # Always overwrite - fixed canonical format YYYY-MM-DD HH:MM+00
-            data["start_at"] = f"{date_part} {time_part}+00"
-            data["start_time"] = time_part
-
-        # 3. ENFORCE Score Extraction from result strings 
-        # Only split if scores are 0 OR the result logic feels wrong
-        res_str = raw_dict.get("event_final_result") or raw_dict.get("event_ft_result") or raw_dict.get("score") or raw_dict.get("result", {}).get("score", {}).get("fulltime")
-        if res_str and any(sep in str(res_str) for sep in [" - ", ":", "-"]):
-            try:
-                # Normalize separator to " - "
-                normalized = str(res_str).replace(":", " - ").replace("-", " - ")
-                if " - " in normalized:
-                    parts = [p.strip() for p in normalized.split(" - ") if p.strip().isdigit()]
-                    if len(parts) >= 2:
-                        # Use these scores as the ground truth if the model failed
-                        data["local_team_score"] = int(parts[0])
-                        data["visitor_team_score"] = int(parts[1])
-            except: pass
-
-        # 4. ENFORCE Correct Status & Result Logic (Mathematical Safeguard)
-        status = data.get("status")
-        # Check for live indicators even if model missed them
-        status_val = str(raw_dict.get("event_status")).lower()
-        has_digits = any(char.isdigit() for char in status_val)
+        # Check for live indicators to force "running"
+        status_val_raw = str(raw_dict.get("event_status", "")).lower()
+        has_digits = any(char.isdigit() for char in status_val_raw)
         is_live_indicator = (str(raw_dict.get("event_live")) == "1" or 
                              has_digits or 
-                             status_val in ["ht", "1h", "2h", "et", "pen"])
+                             status_val_raw in ["ht", "1h", "2h", "et", "pen"])
         
         if is_live_indicator and status != "finished":
-            data["status"] = "running"
             status = "running"
 
-        # DEFINITIVE RULE: event_live==1 AND timer>0 => status=running, unconditionally
+        # DEFINITIVE RULE: event_live==1 AND timer>0 => status=running
         if str(raw_dict.get("event_live")) == "1" and (data.get("timer") or 0) > 0:
-            data["status"] = "running"
             status = "running"
 
+        data["status"] = status
+
+        # 4b. ENFORCE Result Logic (STRICT ENUM: local, visitor, draw, null)
         l_score = data.get("local_team_score", 0) or 0
         v_score = data.get("visitor_team_score", 0) or 0
         
@@ -228,18 +304,18 @@ Output format:
             elif v_score > l_score: data["result"] = "visitor"
             else: data["result"] = "draw"
         else:
-            data["result"] = "none"
-
+            data["result"] = None # Snap to null as per requirement
+            
         # 5. ENFORCE Timer Safety 
         if status in ["finished", "upcoming", "abort"]:
             data["timer"] = 0
         elif status == "running":
             potential_timer = str(raw_dict.get("timer") or raw_dict.get("event_timer") or raw_dict.get("event_status"))
-            # Extract first numeric sequence (e.g. "67'" -> 67, "45+2" -> 45)
-            import re
             match = re.search(r'\d+', potential_timer)
             if match:
                 data["timer"] = int(match.group())
+            else:
+                data["timer"] = data.get("timer") or 0
 
         # 6. ENFORCE Week Day — broad key scan (model may miss alternate key names)
         # Check all common aliases including fuzzy key scan
@@ -254,19 +330,50 @@ Output format:
             val = raw_dict.get(key)
             if val:
                 input_wd = val
+                result["mapping_trace"]["week_day"] = key
                 break
-        # Fallback: fuzzy scan any key containing 'day' (e.g. 'event_day_of_week')
         if not input_wd:
+            # Fallback 1: scan EVERY string value for a day name
+            days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+                    "mon", "tue", "wed", "thu", "fri", "sat", "sun"]
             for key, val in raw_dict.items():
-                if 'day' in key.lower() and val and isinstance(val, str) and len(val) < 15:
-                    # Filter out date strings and IDs (weekday names are short strings)
-                    days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun",
-                            "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-                    if any(d in str(val).lower() for d in days):
-                        input_wd = val
-                        break
+                if val and isinstance(val, str) and len(val) < 100:
+                    val_lower = val.lower()
+                    for d in days:
+                        if d in val_lower:
+                            input_wd = d
+                            result["mapping_trace"]["week_day"] = key
+                            break
+                    if input_wd: break
+            
+            # Fallback 2: Check in date/time strings if they contain a day name
+            if not input_wd:
+                for key in ["event_date", "start_at", "fixture_date", "match_date", "utcDate", "fixture"]:
+                    val = raw_dict.get(key)
+                    if isinstance(val, dict): # handle fixture: { date: "..." }
+                        val = val.get("date")
+                    if val and isinstance(val, str):
+                        days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                        for d in days:
+                            if d in val.lower():
+                                input_wd = d
+                                break
+                    if input_wd: break
         if input_wd:
-            data["week_day"] = str(input_wd).lower()
+            wd_lower = str(input_wd).lower()
+            day_map = {
+                'mon': 'monday', 'tue': 'tuesday', 'wed': 'wednesday',
+                'thu': 'thursday', 'fri': 'friday', 'sat': 'saturday', 'sun': 'sunday'
+            }
+            # Try to match abbreviation or full name
+            matched = False
+            for abbr, full in day_map.items():
+                if wd_lower.startswith(abbr):
+                    data['week_day'] = full
+                    matched = True
+                    break
+            if not matched:
+                data['week_day'] = wd_lower
         else:
             data["week_day"] = None
 
@@ -281,48 +388,59 @@ Output format:
 
         # 7. ENFORCE Team Name Recovery
         placeholders = ["team a", "team b", "home club", "away club", "string", None, ""]
+        TEAM_1_KEYS = ["event_home_team", "localteam_name", "home_team", "strHomeTeam", "team_1"]
         if str(data.get("local_team_name")).lower() in placeholders:
-            name = (raw_dict.get("event_home_team") or 
-                    raw_dict.get("localteam_name") or 
-                    raw_dict.get("home_team") or 
-                    raw_dict.get("strHomeTeam") or 
-                    raw_dict.get("team_1"))
-            if name: data["local_team_name"] = str(name).lower().strip()
+            for k in TEAM_1_KEYS:
+                if raw_dict.get(k):
+                    data["local_team_name"] = str(raw_dict.get(k)).lower().strip()
+                    result["mapping_trace"]["local_team_name"] = k
+                    break
             
+        TEAM_2_KEYS = ["event_away_team", "visitorteam_name", "away_team", "strAwayTeam", "team_2"]
         if str(data.get("visitor_team_name")).lower() in placeholders:
-            name = (raw_dict.get("event_away_team") or 
-                    raw_dict.get("visitorteam_name") or 
-                    raw_dict.get("away_team") or 
-                    raw_dict.get("strAwayTeam") or 
-                    raw_dict.get("team_2"))
-            if name: data["visitor_team_name"] = str(name).lower().strip()
+            for k in TEAM_2_KEYS:
+                if raw_dict.get(k):
+                    data["visitor_team_name"] = str(raw_dict.get(k)).lower().strip()
+                    result["mapping_trace"]["visitor_team_name"] = k
+                    break
 
         # 8. ENFORCE Team ID Recovery
+        T1_ID_KEYS = ["home_team_key", "localteam_id", "home_id", "team_home_id"]
         if not data.get("local_team_id") or data.get("local_team_id") == 0:
-            data["local_team_id"] = raw_dict.get("home_team_key") or raw_dict.get("localteam_id") or 0
+            for k in T1_ID_KEYS:
+                if raw_dict.get(k):
+                    data["local_team_id"] = raw_dict.get(k)
+                    result["mapping_trace"]["local_team_id"] = k
+                    break
+                    
+        T2_ID_KEYS = ["away_team_key", "visitorteam_id", "away_id", "team_away_id"]
         if not data.get("visitor_team_id") or data.get("visitor_team_id") == 0:
-            data["visitor_team_id"] = raw_dict.get("away_team_key") or raw_dict.get("visitorteam_id") or 0
+            for k in T2_ID_KEYS:
+                if raw_dict.get(k):
+                    data["visitor_team_id"] = raw_dict.get(k)
+                    result["mapping_trace"]["visitor_team_id"] = k
+                    break
 
     elif result.get("type") == "league" and "data" in result:
         data = result["data"]
-        raw_dict = {}
-        try:
-            raw_dict = json.loads(raw_api_data)
-        except: pass
+        raw_dict = resilient_json_load(raw_api_data)
         
         # Enforce League ID - always from source
-        data["data_id"] = (
-            raw_dict.get("league_key") or raw_dict.get("league_id") or
-            raw_dict.get("id") or raw_dict.get("data_id") or
-            data.get("data_id") or 0
-        )
+        for k in ["league_key", "league_id", "id", "data_id"]:
+            if raw_dict.get(k):
+                data["data_id"] = raw_dict.get(k)
+                result["mapping_trace"]["data_id"] = k
+                break
+        else:
+            data["data_id"] = data.get("data_id") or 0
         
         # Enforce Name consistency
-        if not data.get("league_name") or data.get("league_name") == "string":
-            data["league_name"] = (raw_dict.get("league_name") or raw_dict.get("name") or "").lower()
-        
-        # display_name always mirrors league_name
-        data["display_name"] = data.get("league_name")
+        for k in ["league_name", "competition_name", "name"]:
+            if raw_dict.get(k):
+                data["league_name"] = str(raw_dict.get(k)).lower().strip()
+                data["display_name"] = data["league_name"]
+                result["mapping_trace"]["league_name"] = k
+                break
             
         if not data.get("country") or data.get("country") == "string":
             data["country"] = (raw_dict.get("country_name") or raw_dict.get("strCountry") or "").lower()
@@ -346,6 +464,10 @@ Output format:
         "timer",                     # enforced by status logic
         "is_mixed",                  # always False
         "end_at", "data_static_id",  # always null
+        # Scores: aggressively enforced from source strings/keys
+        "local_team_score", "visitor_team_score",
+        "local_team_pen_score", "local_team_et_score", "local_team_ft_score",
+        "visitor_team_pen_score", "visitor_team_et_score", "visitor_team_ft_score",
     }
     fc = result.get("field_confidences", {})
     for field in ENFORCED_FIELDS:
@@ -353,10 +475,7 @@ Output format:
             fc[field] = 100.0
     # status confidence: if post-processing determined it (live indicator), mark as 100%
     if result.get("type") == "match":
-        raw_dict_check = {}
-        try:
-            raw_dict_check = json.loads(raw_api_data)
-        except: pass
+        raw_dict_check = resilient_json_load(raw_api_data)
         status_val_check = str(raw_dict_check.get("event_status", "")).lower()
         has_digits_check = any(c.isdigit() for c in status_val_check)
         event_live_check = str(raw_dict_check.get("event_live", "")) == "1"
@@ -371,23 +490,54 @@ Output format:
     all_probs = list(fc.values())
     result["confidence"] = sum(all_probs) / len(all_probs) if all_probs else 0
 
+    # 9. FINAL TRACE SYNC (Find sources for anything missing)
+    # If a field was mapped by the model but not caught in post-processing trace,
+    # try to find its value in the raw_dict keys.
+    raw_dict_sync = resilient_json_load(raw_api_data)
+    data_sync = result.get("data", {})
+    for field, val in data_sync.items():
+        if field not in result["mapping_trace"] and val:
+            val_str = str(val).lower()
+            # Direct value match in raw_dict
+            for rk, rv in raw_dict_sync.items():
+                if str(rv).lower() == val_str:
+                    result["mapping_trace"][field] = rk
+                    break
+                elif isinstance(rv, dict): # check one level deep
+                    for subk, subv in rv.items():
+                        if str(subv).lower() == val_str:
+                            result["mapping_trace"][field] = f"{rk}.{subk}"
+                            break
+            if field in result["mapping_trace"]: continue
+
+            # Partial match for team names if not found directly
+            if "team_name" in field:
+                for rk, rv in raw_dict_sync.items():
+                    if isinstance(rv, str) and val_str in rv.lower() and len(rv) < 50:
+                        result["mapping_trace"][field] = rk
+                        break
+
     return result
 
 def map_logprobs_to_keys(response_obj):
     """
     Maps token-level logprobs back to JSON keys using a robust index-mapping strategy.
     """
-    tokens = getattr(response_obj, 'logprobs', None)
-    if not tokens:
+    # Ollama returns logprobs in a list of dicts/objects
+    logprobs_list = response_obj.get('logprobs', [])
+    if not logprobs_list:
         return {}
 
     # 1. Build string with index mapping
     full_text = ""
     token_metadata = []
     current_pos = 0
-    for item in tokens:
-        t = item.token
-        prob = math.exp(item.logprob)
+    for item in logprobs_list:
+        # Check if item is a dict (Ollama default) or object
+        t = item.get('token') if isinstance(item, dict) else getattr(item, 'token', "")
+        lp = item.get('logprob') if isinstance(item, dict) else getattr(item, 'logprob', 0)
+        
+        prob = math.exp(lp)
         t_len = len(t)
         token_metadata.append({"start": current_pos, "end": current_pos + t_len, "prob": prob, "token": t})
         full_text += t
@@ -396,8 +546,8 @@ def map_logprobs_to_keys(response_obj):
     results = {}
     
     # 2. Find all key-value positions in the final JSON string
-    # Pattern looks for "key": value (handles strings, numbers, booleans, null)
-    pattern = r'"([^"]+)":\s*("[^"]*"|\d+\.?\d*|true|false|null)'
+    # Improved pattern: handles more whitespace variations
+    pattern = r'"([^"]+)"\s*:\s*("[^"]*"|\d+\.?\d*|true|false|null)'
     for match in re.finditer(pattern, full_text):
         key = match.group(1)
         value_start = match.start(2)
